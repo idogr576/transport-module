@@ -137,14 +137,13 @@ static int device_release(struct inode *inode, struct file *file)
 
  * read from it.
  */
-static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
+static ssize_t device_read(struct file *filp,   /* see include/linux/fs.h   */
                            char __user *buffer, /* buffer to fill with data */
-                           size_t length, /* length of the buffer     */
+                           size_t length,       /* length of the buffer     */
                            loff_t *offset)
 {
     pr_alert("Sorry, this operation is not supported.\n");
     return -EPERM;
-
 }
 
 /* Called when a process writes to dev file: echo "hi" | sudo tee /dev/chardev */
@@ -163,7 +162,8 @@ static ssize_t device_write(struct file *filp, const char __user *buff, size_t l
     char buff_message[BUF_LEN] = {0};
     int num = sscanf(user_buff_in_kernel, "%s %d %255[^\\n]%*c", buff_address, &buff_port, buff_message);
     printk("buff_address = %s, buff_port = %d, buff_message = %s\n", buff_address, buff_port, buff_message);
-    if (num != 3) {
+    if (num != 3)
+    {
         printk("WARNING: got invalid data, required \"<ipv4> <port> <data>\"\n");
         return -EINVAL;
     }
@@ -180,7 +180,12 @@ static ssize_t device_write(struct file *filp, const char __user *buff, size_t l
     msg.msg_namelen = sizeof(address);
 
     printk("reached sock_sendmsg: %d\n", ++counter);
-    return kernel_sendmsg(sock, &msg, &vec, BUF_LEN, strlen(user_buff_in_kernel));
+    int sent = kernel_sendmsg(sock, &msg, &vec, BUF_LEN, strlen(buff_message));
+    if (sent != strlen(buff_message))
+    {
+        printk("WARNING: message was sent but may be incomplete!");
+    }
+    return len;
 }
 
 module_init(chardev_init);
