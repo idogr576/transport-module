@@ -40,7 +40,8 @@ static ssize_t device_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char __user *, size_t,
                             loff_t *);
 
-#define DEVICE_NAME "udp" /* Dev name as it appears in /proc/devices   */
+#define DEVICE_NAME "udp" /* Dev name as it appears in /proc/devices */
+#define CLASS_NAME "transport" /* Class name as it appears in /sys/class */
 
 #define BUF_LEN 256 /* Max length of the message from the device */
 
@@ -78,10 +79,10 @@ static int __init chardev_init(void)
     pr_info("I was assigned major number %d.\n", major);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-    cls = class_create(DEVICE_NAME);
+    cls = class_create(CLASS_NAME);
 
 #else
-    cls = class_create(THIS_MODULE, DEVICE_NAME);
+    cls = class_create(THIS_MODULE, CLASS_NAME);
 #endif
 
     device_create(cls, NULL, MKDEV(major, 0), NULL, DEVICE_NAME);
