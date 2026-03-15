@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <linux/sprintf.h>
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/in.h>
@@ -25,7 +26,6 @@
 #include <linux/version.h>
 #include <linux/inet.h>
 #include <linux/byteorder/generic.h>
-#include <linux/kstrtox.h>
 
 #include <asm/errno.h>
 
@@ -151,39 +151,35 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
 
 static ssize_t device_write(struct file *filp, const char __user *buff, size_t len, loff_t *off)
 {
+    struct msghdr msg;
+    struct sockaddr_in address;
     char user_buff_in_kernel[BUF_LEN] = {0};
-    strncpy_from_user(user_buff_in_kernel, buff, len < BUF_LEN ? len : BUF_LEN);
 
+    strncpy_from_user(user_buff_in_kernel, buff, len < BUF_LEN ? len : BUF_LEN);
     printk("sending data on the udp socket: %s\n", user_buff_in_kernel);
 
-    struct msghdr msg;
-    struct iov_iter i;
+    char buff_address[BUF_LEN] = {0};
+    int buff_port = 0;
+    char buff_message[BUF_LEN] = {0};
+    int num = sscanf(user_buff_in_kernel, "%s %d %255[^\\n]%*c", buff_address, &buff_port, buff_message);
+    printk("buff_address = %s, buff_port = %d, buff_message = %s\n", buff_address, buff_port, buff_message);
+    if (num != 3) {
+        printk("WARNING: got invalid data, required \"<ipv4> <port> <data>\"\n");
+        return -EINVAL;
+    }
+    in4_pton(buff_address, -1, (u8 *)&address.sin_addr.s_addr, -1, NULL);
+    address.sin_family = AF_INET;
+    address.sin_port = htons(buff_port);
 
     struct kvec vec;
-    vec.iov_base = user_buff_in_kernel;
+    vec.iov_base = buff_message;
     vec.iov_len = BUF_LEN;
-
-    struct sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_port = htons(12345);
-    // address.sin_port = 12345;
-    in4_pton("10.100.102.47", -1, (u8 *)&address.sin_addr.s_addr, -1, NULL);
-
-    printk("reached iov_iter_kvec\n");
-
-    iov_iter_ubuf(&i, ITER_SOURCE, (void __user *)buff, len);
 
     printk("reached msg assingment\n");
     msg.msg_name = (struct sockaddr *)&address;
     msg.msg_namelen = sizeof(address);
-    // msg.msg_control = NULL;
-    // msg.msg_controllen = 0;
-
-//    msg.msg_iter = i;
 
     printk("reached sock_sendmsg: %d\n", ++counter);
-
-    printk("len = %d\n", len);
     return kernel_sendmsg(sock, &msg, &vec, BUF_LEN, strlen(user_buff_in_kernel));
 }
 
