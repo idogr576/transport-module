@@ -49,7 +49,6 @@ static ssize_t device_write(struct file *, const char __user *, size_t,
 
 static int major; /* major number assigned to our device driver */
 
-// static char msg[BUF_LEN + 1]; /* The msg the device will give when asked */
 static struct class *cls;
 
 static struct socket *sock;
@@ -156,16 +155,16 @@ static ssize_t device_write(struct file *filp, const char __user *buff, size_t l
     char user_buff_in_kernel[BUF_LEN] = {0};
 
     strncpy_from_user(user_buff_in_kernel, buff, len < BUF_LEN ? len : BUF_LEN);
-    printk("sending data on the udp socket: %s\n", user_buff_in_kernel);
+    pr_info("sending data on the udp socket: %s\n", user_buff_in_kernel);
 
     char buff_address[BUF_LEN] = {0};
     int buff_port = 0;
     char buff_message[BUF_LEN] = {0};
     int num = sscanf(user_buff_in_kernel, "%s %d %255[^\\n]%*c", buff_address, &buff_port, buff_message);
-    printk("buff_address = %s, buff_port = %d, buff_message = %s\n", buff_address, buff_port, buff_message);
+    pr_info("buff_address = %s, buff_port = %d, buff_message = %s\n", buff_address, buff_port, buff_message);
     if (num != 3)
     {
-        printk("WARNING: got invalid data, required \"<ipv4> <port> <data>\"\n");
+        pr_info("WARNING: got invalid data, required \"<ipv4> <port> <data>\"\n");
         return -EINVAL;
     }
     in4_pton(buff_address, -1, (u8 *)&address.sin_addr.s_addr, -1, NULL);
@@ -176,15 +175,15 @@ static ssize_t device_write(struct file *filp, const char __user *buff, size_t l
     vec.iov_base = buff_message;
     vec.iov_len = BUF_LEN;
 
-    printk("reached msg assingment\n");
+    pr_info("reached msg assingment\n");
     msg.msg_name = (struct sockaddr *)&address;
     msg.msg_namelen = sizeof(address);
 
-    printk("reached sock_sendmsg: %d\n", ++counter);
+    pr_info("reached sock_sendmsg: %d\n", ++counter);
     int sent = kernel_sendmsg(sock, &msg, &vec, BUF_LEN, strlen(buff_message));
     if (sent != strlen(buff_message))
     {
-        printk("WARNING: message was sent but may be incomplete!");
+        pr_info("WARNING: message was sent but may be incomplete!");
     }
     return len;
 }
