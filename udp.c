@@ -25,6 +25,7 @@
 #include <linux/version.h>
 #include <linux/inet.h>
 #include <linux/byteorder/generic.h>
+#include <linux/kstrtox.h>
 
 #include <asm/errno.h>
 
@@ -150,12 +151,17 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
 
 static ssize_t device_write(struct file *filp, const char __user *buff, size_t len, loff_t *off)
 {
-    // pr_info("sending data %s on the udp socket", buff);
-    printk("sending data on the udp socket\n");
+    char user_buff_in_kernel[BUF_LEN] = {0};
+    strncpy_from_user(user_buff_in_kernel, buff, len < BUF_LEN ? len : BUF_LEN);
+
+    printk("sending data on the udp socket: %s\n", user_buff_in_kernel);
 
     struct msghdr msg;
-
     struct iov_iter i;
+
+    struct kvec vec;
+    vec.iov_base = user_buff_in_kernel;
+    vec.iov_len = BUF_LEN;
 
     struct sockaddr_in address;
     address.sin_family = AF_INET;
@@ -172,12 +178,13 @@ static ssize_t device_write(struct file *filp, const char __user *buff, size_t l
     msg.msg_namelen = sizeof(address);
     // msg.msg_control = NULL;
     // msg.msg_controllen = 0;
-    msg.msg_iter = i;
+
+//    msg.msg_iter = i;
 
     printk("reached sock_sendmsg: %d\n", ++counter);
 
     printk("len = %d\n", len);
-    return sock_sendmsg(sock, &msg);
+    return kernel_sendmsg(sock, &msg, &vec, BUF_LEN, strlen(user_buff_in_kernel));
 }
 
 module_init(chardev_init);
